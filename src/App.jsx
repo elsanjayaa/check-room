@@ -1,24 +1,33 @@
 import { useState, useEffect } from "react";
 import { db } from "./firebase";
 import {
-  collection, addDoc, onSnapshot, deleteDoc,
-  doc, updateDoc, query, orderBy, serverTimestamp
+  collection, onSnapshot, deleteDoc,
+  doc, setDoc, query
 } from "firebase/firestore";
 
 const FLOORS = Array.from({length:17}, (_,i) => i+1);
+const MONTHS = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
 const today = new Date();
 const yesterday = new Date(Date.now() - 86400000);
 const toDateStr = d => d.toISOString().split("T")[0];
-const EMPTY = { lantai:"", kamar:"", doorBefore:"", doorAfter:"", expiredBaterai:"", catatanDoor:"", channelInput:"", channelRusak:[], catatan:"" };
+const todayStr = toDateStr(today);
+
+// ID dokumen = tanggal_lantai_kamar → unik per kamar per hari
+const makeDocId = (tanggal, lantai, kamar) => `${tanggal}_lt${lantai}_${kamar.replace(/\s/g,"")}`;
+
+const EMPTY = {
+  lantai:"", kamar:"",
+  doorBefore:"", doorAfter:"", expiredBulan:"", expiredTahun:"", catatanDoor:"",
+  channelInput:"", channelRusak:[],
+  catatan:""
+};
 
 function selisihWaktu(before, after) {
   if (!before || !after) return null;
-  const toSec = t => { const [h,m,s] = t.split(":").map(Number); return h*3600 + m*60 + (s||0); };
+  const toSec = t => { const [h,m,s] = t.split(":").map(Number); return h*3600+m*60+(s||0); };
   const diff = toSec(after) - toSec(before);
   if (diff <= 0) return null;
-  const j = Math.floor(diff / 3600);
-  const m = Math.floor((diff % 3600) / 60);
-  const s = diff % 60;
+  const j = Math.floor(diff/3600), m = Math.floor((diff%3600)/60), s = diff%60;
   if (j > 0) return `${j} jam ${m} menit ${s} detik`;
   if (m > 0) return `${m} menit ${s} detik`;
   return `${s} detik`;
@@ -31,7 +40,12 @@ function fmt(ts) {
 }
 
 function fmtTanggal(dateStr) {
-  return new Date(dateStr).toLocaleDateString("id-ID", { weekday:"long", day:"2-digit", month:"long", year:"numeric" });
+  return new Date(dateStr+"T00:00:00").toLocaleDateString("id-ID", { weekday:"long", day:"2-digit", month:"long", year:"numeric" });
+}
+
+function fmtExpired(bulan, tahun) {
+  if (!bulan && !tahun) return "—";
+  return `${MONTHS[Number(bulan)-1]||""} ${tahun}`.trim();
 }
 
 function Badge({ text, color }) {
@@ -39,9 +53,9 @@ function Badge({ text, color }) {
 }
 
 function Toast({ msg, ok, onDone }) {
-  useEffect(() => { const t = setTimeout(onDone, 2500); return () => clearTimeout(t); }, []);
+  useEffect(() => { const t = setTimeout(onDone, 2500); return ()=>clearTimeout(t); }, []);
   return (
-    <div style={{ position:"fixed", top:20, left:"50%", transform:"translateX(-50%)", zIndex:99999, background: ok?"#16a34a":"#dc2626", color:"#fff", padding:"10px 24px", borderRadius:9, fontSize:13, fontWeight:600, boxShadow:"0 6px 20px rgba(0,0,0,0.2)", whiteSpace:"nowrap" }}>
+    <div style={{ position:"fixed", top:20, left:"50%", transform:"translateX(-50%)", zIndex:99999, background:ok?"#16a34a":"#dc2626", color:"#fff", padding:"10px 24px", borderRadius:9, fontSize:13, fontWeight:600, boxShadow:"0 6px 20px rgba(0,0,0,0.2)", whiteSpace:"nowrap" }}>
       {msg}
     </div>
   );
@@ -50,17 +64,12 @@ function Toast({ msg, ok, onDone }) {
 function PrintView({ data, tanggal, lantai, onClose }) {
   const [savingPdf, setSavingPdf] = useState(false);
 
-  const filtered = data.filter(d => {
-    const ts = d.ts?.toDate ? d.ts.toDate() : new Date(d.ts);
-    const tgl = ts.toISOString().split("T")[0];
-    return tgl === tanggal && (lantai === "all" || d.lantai === Number(lantai));
-  }).sort((a,b) => a.lantai - b.lantai || a.kamar.localeCompare(b.kamar));
+  const filtered = data
+    .filter(d => d.tanggal === tanggal && (lantai==="all" || d.lantai===Number(lantai)))
+    .sort((a,b) => a.lantai-b.lantai || a.kamar.localeCompare(b.kamar));
 
   const grouped = {};
-  filtered.forEach(d => {
-    if (!grouped[d.lantai]) grouped[d.lantai] = [];
-    grouped[d.lantai].push(d);
-  });
+  filtered.forEach(d => { if (!grouped[d.lantai]) grouped[d.lantai]=[]; grouped[d.lantai].push(d); });
 
   const handleSavePdf = async () => {
     setSavingPdf(true);
@@ -69,20 +78,19 @@ function PrintView({ data, tanggal, lantai, onClose }) {
       script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
       document.head.appendChild(script);
       await new Promise(r => { script.onload = r; });
-      const el = document.getElementById("print-area");
-      const filename = `laporan-${tanggal}${lantai !== "all" ? "-lt"+lantai : "-semua"}.pdf`;
+      const filename = `laporan-${tanggal}${lantai!=="all"?"-lt"+lantai:"-semua"}.pdf`;
       await window.html2pdf().set({
         margin:[8,8,8,8], filename,
         image:{ type:"jpeg", quality:0.98 },
         html2canvas:{ scale:2, useCORS:true, logging:false },
         jsPDF:{ unit:"mm", format:"a4", orientation:"portrait" }
-      }).from(el).save();
-    } catch(e) { alert("Gagal simpan PDF, gunakan tombol Print → Save as PDF."); }
+      }).from(document.getElementById("print-area")).save();
+    } catch { alert("Gagal simpan PDF, gunakan tombol Print → Save as PDF."); }
     setSavingPdf(false);
   };
 
-  const th = () => ({ border:"1px solid #ccc", padding:"3px 5px", background:"#dce6f1", fontSize:7.5, fontWeight:700, color:"#1e3a5f", textAlign:"left", whiteSpace:"nowrap" });
-  const td = (extra={}) => ({ border:"1px solid #ddd", padding:"3px 5px", fontSize:7.5, verticalAlign:"top", lineHeight:1.35, ...extra });
+  const th = () => ({ border:"1px solid #ccc", padding:"3px 5px", background:"#dce6f1", fontSize:10, fontWeight:700, color:"#1e3a5f", textAlign:"left", whiteSpace:"nowrap" });
+  const td = (x={}) => ({ border:"1px solid #ddd", padding:"3px 5px", fontSize:10, verticalAlign:"top", lineHeight:1.35, ...x });
 
   return (
     <>
@@ -101,7 +109,7 @@ function PrintView({ data, tanggal, lantai, onClose }) {
           <button onClick={onClose} style={{ padding:"7px 16px", background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.2)", borderRadius:8, color:"#fff", fontWeight:600, fontSize:12, cursor:"pointer" }}>✕ Tutup</button>
           <button onClick={()=>window.print()} style={{ padding:"7px 16px", background:"rgba(255,255,255,0.15)", border:"1px solid rgba(255,255,255,0.3)", borderRadius:8, color:"#fff", fontWeight:600, fontSize:12, cursor:"pointer" }}>🖨️ Print</button>
           <button onClick={handleSavePdf} disabled={savingPdf} style={{ padding:"7px 18px", background:savingPdf?"#475569":"#2563eb", border:"none", borderRadius:8, color:"#fff", fontWeight:700, fontSize:12, cursor:savingPdf?"not-allowed":"pointer" }}>
-            {savingPdf ? "⏳ Menyimpan..." : "⬇ Simpan PDF"}
+            {savingPdf?"⏳ Menyimpan...":"⬇ Simpan PDF"}
           </button>
         </div>
         <div id="print-area" style={{ maxWidth:760, margin:"0 auto", background:"#fff", padding:"14px 18px", boxShadow:"0 8px 40px rgba(0,0,0,0.35)", fontFamily:"Arial,sans-serif" }}>
@@ -114,7 +122,7 @@ function PrintView({ data, tanggal, lantai, onClose }) {
             </div>
             <div style={{ fontSize:7, color:"#999" }}>Dicetak: {new Date().toLocaleString("id-ID")}</div>
           </div>
-          {filtered.length === 0 ? (
+          {filtered.length===0 ? (
             <div style={{ textAlign:"center", padding:"40px 0", color:"#aaa", fontSize:11 }}>Tidak ada data untuk filter ini</div>
           ) : Object.keys(grouped).sort((a,b)=>Number(a)-Number(b)).map(lt => (
             <div key={lt} style={{ marginBottom:10 }}>
@@ -122,9 +130,9 @@ function PrintView({ data, tanggal, lantai, onClose }) {
                 <span>LANTAI {lt}</span><span>{grouped[lt].length} kamar</span>
               </div>
               <table style={{ width:"100%", borderCollapse:"collapse", tableLayout:"fixed" }}>
-                <colgroup><col style={{width:"6%"}}/><col style={{width:"8%"}}/><col style={{width:"8%"}}/><col style={{width:"12%"}}/><col style={{width:"9%"}}/><col style={{width:"20%"}}/><col style={{width:"18%"}}/><col style={{width:"19%"}}/></colgroup>
+                <colgroup><col style={{width:"6%"}}/><col style={{width:"8%"}}/><col style={{width:"8%"}}/><col style={{width:"12%"}}/><col style={{width:"10%"}}/><col style={{width:"19%"}}/><col style={{width:"18%"}}/><col style={{width:"19%"}}/></colgroup>
                 <thead>
-                  <tr><th style={th()}>Kamar</th><th style={th()}>Before</th><th style={th()}>After</th><th style={th()}>Durasi</th><th style={th()}>Exp. Baterai</th><th style={th()}>Channel Rusak</th><th style={th()}>Catatan Door Lock</th><th style={th()}>Catatan Umum</th></tr>
+                  <tr><th style={th()}>Kamar</th><th style={th()}>Before</th><th style={th()}>After</th><th style={th()}>Durasi</th><th style={th()}>Exp. Baterai</th><th style={th()}>Channel Rusak</th><th style={th()}>Catatan Door</th><th style={th()}>Catatan Umum</th></tr>
                 </thead>
                 <tbody>
                   {grouped[lt].map((row,i) => (
@@ -133,7 +141,7 @@ function PrintView({ data, tanggal, lantai, onClose }) {
                       <td style={td({ fontFamily:"monospace", whiteSpace:"nowrap" })}>{row.doorBefore||"—"}</td>
                       <td style={td({ fontFamily:"monospace", whiteSpace:"nowrap" })}>{row.doorAfter||"—"}</td>
                       <td style={td({ color:"#16a34a", fontWeight:600 })}>{selisihWaktu(row.doorBefore,row.doorAfter)||"—"}</td>
-                      <td style={td({ fontFamily:"monospace" })}>{row.expiredBaterai||"—"}</td>
+                      <td style={td()}>{fmtExpired(row.expiredBulan, row.expiredTahun)}</td>
                       <td style={td({ color:row.channelRusak?.length?"#dc2626":"#bbb", wordBreak:"break-word" })}>{row.channelRusak?.join(", ")||"—"}</td>
                       <td style={td({ color:"#444", wordBreak:"break-word" })}>{row.catatanDoor||"—"}</td>
                       <td style={td({ color:"#444", wordBreak:"break-word" })}>{row.catatan||"—"}</td>
@@ -144,8 +152,7 @@ function PrintView({ data, tanggal, lantai, onClose }) {
             </div>
           ))}
           <div style={{ borderTop:"1px solid #ddd", marginTop:10, paddingTop:5, display:"flex", justifyContent:"space-between", fontSize:7, color:"#aaa" }}>
-            <span>Hotel Room Check System</span>
-            <span>{new Date().toLocaleString("id-ID")}</span>
+            <span>Hotel Room Check System</span><span>{new Date().toLocaleString("id-ID")}</span>
           </div>
         </div>
       </div>
@@ -162,16 +169,15 @@ export default function App() {
   const [editId, setEditId] = useState(null);
   const [filterLantai, setFilterLantai] = useState("all");
   const [showPrint, setShowPrint] = useState(false);
-  const [printTanggal, setPrintTanggal] = useState(toDateStr(today));
+  const [printTanggal, setPrintTanggal] = useState(todayStr);
   const [printLantai, setPrintLantai] = useState("all");
   const [toast, setToast] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
   const showToast = (msg, ok=true) => setToast({ msg, ok });
 
-  // Realtime listener dari Firestore
   useEffect(() => {
-    const q = query(collection(db, "pengecekan"), orderBy("ts", "asc"));
+    const q = query(collection(db, "pengecekan"));
     const unsub = onSnapshot(q, snap => {
       setData(snap.docs.map(d => ({ id:d.id, ...d.data() })));
       setLoading(false);
@@ -186,59 +192,59 @@ export default function App() {
   const removeChannel = i => setForm(f => ({ ...f, channelRusak:f.channelRusak.filter((_,idx)=>idx!==i) }));
 
   const handleSubmit = async () => {
-    if (!form.lantai || !form.kamar) { showToast("Lantai dan nomor kamar wajib diisi!", false); return; }
+    if (!form.lantai || !form.kamar.trim()) { showToast("Lantai dan nomor kamar wajib diisi!", false); return; }
     setSaving(true);
     try {
+      const tanggal = todayStr;
+      const docId = editId || makeDocId(tanggal, form.lantai, form.kamar);
+
+      // Ambil data lama kalau sudah ada (merge — hanya timpa field yang diisi)
+      const existing = data.find(d => d.id === docId);
       const payload = {
+        tanggal,
         lantai: Number(form.lantai),
-        kamar: form.kamar,
-        doorBefore: form.doorBefore,
-        doorAfter: form.doorAfter,
-        expiredBaterai: form.expiredBaterai,
-        catatanDoor: form.catatanDoor,
-        channelRusak: form.channelRusak,
-        catatan: form.catatan,
+        kamar: form.kamar.trim(),
+        // Timpa hanya kalau field diisi, kalau kosong pakai data lama
+        doorBefore:   form.doorBefore   || existing?.doorBefore   || "",
+        doorAfter:    form.doorAfter    || existing?.doorAfter    || "",
+        expiredBulan: form.expiredBulan || existing?.expiredBulan || "",
+        expiredTahun: form.expiredTahun || existing?.expiredTahun || "",
+        catatanDoor:  form.catatanDoor  || existing?.catatanDoor  || "",
+        channelRusak: form.channelRusak.length ? form.channelRusak : (existing?.channelRusak || []),
+        catatan:      form.catatan      || existing?.catatan      || "",
+        updatedAt:    new Date().toISOString(),
       };
-      if (editId) {
-        await updateDoc(doc(db, "pengecekan", editId), payload);
-        showToast("Data berhasil diperbarui ✓");
-        setEditId(null);
-      } else {
-        await addDoc(collection(db, "pengecekan"), { ...payload, ts: serverTimestamp() });
-        showToast("Data berhasil disimpan ke database ✓");
-      }
+      if (!existing) payload.createdAt = new Date().toISOString();
+
+      await setDoc(doc(db, "pengecekan", docId), payload, { merge:true });
+      showToast(existing ? `Data kamar ${form.kamar} diperbarui ✓` : `Data kamar ${form.kamar} disimpan ✓`);
       setForm(EMPTY);
+      setEditId(null);
     } catch(e) { showToast("Gagal menyimpan: "+e.message, false); }
     setSaving(false);
   };
 
   const handleEdit = row => {
-    setForm({ ...row, channelInput:"", channelRusak: row.channelRusak||[] });
+    setForm({ ...EMPTY, lantai:String(row.lantai), kamar:row.kamar, doorBefore:row.doorBefore||"", doorAfter:row.doorAfter||"", expiredBulan:row.expiredBulan||"", expiredTahun:row.expiredTahun||"", catatanDoor:row.catatanDoor||"", channelRusak:row.channelRusak||[], catatan:row.catatan||"" });
     setEditId(row.id);
     setTab("form");
     window.scrollTo({ top:0, behavior:"smooth" });
   };
 
   const handleDelete = async id => {
-    try {
-      await deleteDoc(doc(db, "pengecekan", id));
-      showToast("Data dihapus");
-    } catch(e) { showToast("Gagal hapus: "+e.message, false); }
+    try { await deleteDoc(doc(db, "pengecekan", id)); showToast("Data dihapus"); }
+    catch(e) { showToast("Gagal hapus: "+e.message, false); }
     setConfirmDelete(null);
   };
 
   const grouped = {};
-  const filtered = filterLantai === "all" ? data : data.filter(d => d.lantai === Number(filterLantai));
-  filtered.forEach(d => {
-    if (!grouped[d.lantai]) grouped[d.lantai] = [];
-    grouped[d.lantai].push(d);
-  });
+  const filtered = filterLantai==="all" ? data : data.filter(d=>d.lantai===Number(filterLantai));
+  filtered.forEach(d => { if(!grouped[d.lantai]) grouped[d.lantai]=[]; grouped[d.lantai].push(d); });
 
-  const printCount = data.filter(d => {
-    const ts = d.ts?.toDate ? d.ts.toDate() : new Date(d.ts||0);
-    const tgl = ts.toISOString().split("T")[0];
-    return tgl === printTanggal && (printLantai === "all" || d.lantai === Number(printLantai));
-  }).length;
+  const printCount = data.filter(d => d.tanggal===printTanggal && (printLantai==="all"||d.lantai===Number(printLantai))).length;
+
+  const yearNow = today.getFullYear();
+  const yearOptions = Array.from({length:6}, (_,i) => yearNow+i);
 
   return (
     <>
@@ -258,7 +264,6 @@ export default function App() {
       {toast && <Toast msg={toast.msg} ok={toast.ok} onDone={()=>setToast(null)}/>}
       {showPrint && <PrintView data={data} tanggal={printTanggal} lantai={printLantai} onClose={()=>setShowPrint(false)}/>}
 
-      {/* Confirm Delete Modal */}
       {confirmDelete && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:8000, display:"flex", alignItems:"center", justifyContent:"center" }}>
           <div style={{ background:"#fff", borderRadius:16, padding:"28px 32px", maxWidth:320, textAlign:"center", boxShadow:"0 20px 60px rgba(0,0,0,0.2)" }}>
@@ -274,9 +279,8 @@ export default function App() {
       )}
 
       <div style={{ minHeight:"100vh", background:"#f0f4f8" }}>
-        {/* Header */}
         <div style={{ background:"#1e3a5f", padding:"0 24px", display:"flex", alignItems:"center", gap:16, height:60, boxShadow:"0 2px 12px rgba(0,0,0,0.15)", position:"sticky", top:0, zIndex:100 }}>
-          <div style={{ width:36,height:36,borderRadius:10,background:"#2563eb",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18 }}>🏨</div>
+          {/* <div style={{ width:36,height:36,borderRadius:10,background:"#2563eb",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18 }}>v</div> */}
           <div>
             <div style={{ fontSize:16, fontWeight:800, color:"#fff" }}>Hotel Room Check</div>
             <div style={{ fontSize:10, color:"#7ca3cc", fontFamily:"'DM Mono',monospace", letterSpacing:1 }}>SISTEM PENGECEKAN KAMAR</div>
@@ -284,7 +288,7 @@ export default function App() {
           <div style={{ marginLeft:"auto", display:"flex", gap:6 }}>
             {["form","data","print"].map(t => (
               <button key={t} onClick={()=>setTab(t)} style={{ padding:"7px 16px", borderRadius:8, border:"none", background:tab===t?"#2563eb":"transparent", color:tab===t?"#fff":"#7ca3cc", fontWeight:700, fontSize:13, cursor:"pointer", transition:"all 0.15s" }}>
-                {t==="form"?"📋 Input":t==="data"?"🗄️ Database":"🖨️ Print"}
+                {t==="form"?"Input":t==="data"?"Data":"🖨️ Print"}
               </button>
             ))}
           </div>
@@ -292,15 +296,19 @@ export default function App() {
 
         <div style={{ maxWidth:900, margin:"0 auto", padding:"28px 20px" }}>
 
-          {/* FORM TAB */}
-          {tab === "form" && (
+          {/* FORM */}
+          {tab==="form" && (
             <div className="fade-up">
               <div style={{ background:"#fff", borderRadius:18, boxShadow:"0 2px 20px rgba(0,0,0,0.07)", overflow:"hidden" }}>
                 <div style={{ background:"linear-gradient(135deg,#1e3a5f,#2563eb)", padding:"22px 28px" }}>
-                  <div style={{ fontSize:20, fontWeight:800, color:"#fff" }}>{editId ? "✏️ Edit Data Kamar" : "Form Pengecekan Kamar"}</div>
-                  <div style={{ fontSize:12, color:"#93c5fd", marginTop:4 }}>{editId ? "Ubah data lalu klik Perbarui" : "Isi semua data pengecekan di bawah ini"}</div>
+                  <div style={{ fontSize:20, fontWeight:800, color:"#fff" }}>{editId?"Edit Data Kamar":"Form Pengecekan Kamar"}</div>
+                  <div style={{ fontSize:12, color:"#93c5fd", marginTop:4 }}>
+                    {editId ? "Ubah data lalu klik Perbarui" : `Data hari ini (${fmtTanggal(todayStr)}) — kamar yang sama akan digabung otomatis`}
+                  </div>
                 </div>
                 <div style={{ padding:"28px 28px 32px" }}>
+
+                  {/* Lantai & Kamar */}
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:20 }}>
                     <div>
                       <label style={{ display:"block", fontSize:12, fontWeight:700, color:"#64748b", letterSpacing:0.5, marginBottom:7 }}>LANTAI</label>
@@ -312,12 +320,25 @@ export default function App() {
                     </div>
                     <div>
                       <label style={{ display:"block", fontSize:12, fontWeight:700, color:"#64748b", letterSpacing:0.5, marginBottom:7 }}>NOMOR KAMAR</label>
-                      <input type="text" value={form.kamar} onChange={e=>setForm(f=>({...f,kamar:e.target.value}))} placeholder="Contoh: 301" className="inp"
-                        style={{ width:"100%", padding:"11px 14px", border:"1.5px solid #e2e8f0", borderRadius:10, fontSize:14, background:"#f8fafc", color:"#1e293b" }}/>
+                      <input type="text" value={form.kamar} onChange={e=>setForm(f=>({...f,kamar:e.target.value}))} placeholder="Contoh: 301" className="inp" style={{ width:"100%", padding:"11px 14px", border:"1.5px solid #e2e8f0", borderRadius:10, fontSize:14, background:"#f8fafc", color:"#1e293b" }}/>
                     </div>
                   </div>
+
+                  {/* Info gabung */}
+                  {form.lantai && form.kamar && (() => {
+                    const existing = data.find(d => d.id === makeDocId(todayStr, form.lantai, form.kamar));
+                    if (!existing) return null;
+                    return (
+                      <div style={{ background:"#fffbeb", border:"1.5px solid #fcd34d", borderRadius:10, padding:"10px 14px", marginBottom:16, fontSize:12, color:"#92400e", display:"flex", alignItems:"center", gap:8 }}>
+                        <span>⚠️</span>
+                        <span>Kamar <b>{form.kamar}</b> hari ini sudah ada data. Input kamu akan <b>digabungkan</b> dengan data yang ada.</span>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Door Lock */}
                   <div style={{ background:"#f1f5f9", borderRadius:12, padding:"18px 20px", marginBottom:20 }}>
-                    <div style={{ fontSize:13, fontWeight:700, color:"#1e3a5f", marginBottom:14 }}>🔒 Door Lock</div>
+                    <div style={{ fontSize:13, fontWeight:700, color:"#1e3a5f", marginBottom:14 }}> Door Lock <span style={{ fontSize:11, fontWeight:400, color:"#94a3b8" }}>(boleh dikosongkan)</span></div>
                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
                       <div>
                         <label style={{ display:"block", fontSize:11, fontWeight:700, color:"#64748b", letterSpacing:0.5, marginBottom:6 }}>WAKTU BEFORE</label>
@@ -330,10 +351,21 @@ export default function App() {
                           style={{ width:"100%", padding:"10px 12px", border:"1.5px solid #e2e8f0", borderRadius:9, fontSize:14, background:"#fff", color:"#1e293b" }}/>
                       </div>
                     </div>
+                    {/* Expired baterai — bulan & tahun */}
                     <div style={{ marginBottom:12 }}>
                       <label style={{ display:"block", fontSize:11, fontWeight:700, color:"#64748b", letterSpacing:0.5, marginBottom:6 }}>EXPIRED BATERAI</label>
-                      <input type="date" value={form.expiredBaterai} onChange={e=>setForm(f=>({...f,expiredBaterai:e.target.value}))} className="inp"
-                        style={{ width:"100%", padding:"10px 12px", border:"1.5px solid #e2e8f0", borderRadius:9, fontSize:14, background:"#fff", color:"#1e293b" }}/>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                        <select value={form.expiredBulan} onChange={e=>setForm(f=>({...f,expiredBulan:e.target.value}))} className="inp"
+                          style={{ padding:"10px 12px", border:"1.5px solid #e2e8f0", borderRadius:9, fontSize:14, background:"#fff", color:form.expiredBulan?"#1e293b":"#94a3b8" }}>
+                          <option value="">Bulan...</option>
+                          {MONTHS.map((m,i)=><option key={i+1} value={String(i+1).padStart(2,"0")}>{m}</option>)}
+                        </select>
+                        <select value={form.expiredTahun} onChange={e=>setForm(f=>({...f,expiredTahun:e.target.value}))} className="inp"
+                          style={{ padding:"10px 12px", border:"1.5px solid #e2e8f0", borderRadius:9, fontSize:14, background:"#fff", color:form.expiredTahun?"#1e293b":"#94a3b8" }}>
+                          <option value="">Tahun...</option>
+                          {yearOptions.map(y=><option key={y} value={y}>{y}</option>)}
+                        </select>
+                      </div>
                     </div>
                     <div>
                       <label style={{ display:"block", fontSize:11, fontWeight:700, color:"#64748b", letterSpacing:0.5, marginBottom:6 }}>CATATAN DOOR LOCK</label>
@@ -341,8 +373,10 @@ export default function App() {
                         style={{ width:"100%", padding:"10px 12px", border:"1.5px solid #e2e8f0", borderRadius:9, fontSize:14, background:"#fff", color:"#1e293b" }}/>
                     </div>
                   </div>
+
+                  {/* Channel TV */}
                   <div style={{ background:"#f1f5f9", borderRadius:12, padding:"18px 20px", marginBottom:20 }}>
-                    <div style={{ fontSize:13, fontWeight:700, color:"#1e3a5f", marginBottom:14 }}>📺 Channel TV Rusak</div>
+                    <div style={{ fontSize:13, fontWeight:700, color:"#1e3a5f", marginBottom:14 }}> Channel TV Rusak <span style={{ fontSize:11, fontWeight:400, color:"#94a3b8" }}>(boleh dikosongkan)</span></div>
                     <div style={{ display:"flex", gap:8, marginBottom:10 }}>
                       <input type="text" value={form.channelInput} onChange={e=>setForm(f=>({...f,channelInput:e.target.value}))}
                         onKeyDown={e=>e.key==="Enter"&&addChannel()} placeholder="Ketik nama channel, tekan Enter..." className="inp"
@@ -357,22 +391,23 @@ export default function App() {
                           </span>
                         ))}
                       </div>
-                    ) : <div style={{ fontSize:12, color:"#94a3b8", fontStyle:"italic" }}>Belum ada channel yang ditambahkan</div>}
+                    ) : <div style={{ fontSize:12, color:"#94a3b8", fontStyle:"italic" }}>Belum ada channel ditambahkan</div>}
                   </div>
+
+                  {/* Catatan */}
                   <div style={{ marginBottom:24 }}>
-                    <label style={{ display:"block", fontSize:12, fontWeight:700, color:"#64748b", letterSpacing:0.5, marginBottom:7 }}>CATATAN UMUM</label>
+                    <label style={{ display:"block", fontSize:12, fontWeight:700, color:"#64748b", letterSpacing:0.5, marginBottom:7 }}>CATATAN UMUM <span style={{ fontSize:11, fontWeight:400, color:"#94a3b8" }}>(boleh dikosongkan)</span></label>
                     <textarea value={form.catatan} onChange={e=>setForm(f=>({...f,catatan:e.target.value}))} placeholder="Catatan tambahan lainnya..." className="inp" rows={3}
                       style={{ width:"100%", padding:"11px 14px", border:"1.5px solid #e2e8f0", borderRadius:10, fontSize:14, background:"#f8fafc", color:"#1e293b", resize:"vertical" }}/>
                   </div>
+
                   <div style={{ display:"flex", gap:10 }}>
                     {editId && (
-                      <button onClick={()=>{setEditId(null);setForm(EMPTY);}} style={{ padding:"14px 20px", background:"#f1f5f9", color:"#64748b", border:"none", borderRadius:12, fontWeight:700, fontSize:14, cursor:"pointer" }}>
-                        Batal
-                      </button>
+                      <button onClick={()=>{setEditId(null);setForm(EMPTY);}} style={{ padding:"14px 20px", background:"#f1f5f9", color:"#64748b", border:"none", borderRadius:12, fontWeight:700, fontSize:14, cursor:"pointer" }}>Batal</button>
                     )}
                     <button onClick={handleSubmit} disabled={saving}
                       style={{ flex:1, padding:"14px", background:saving?"#475569":"#2563eb", color:"#fff", border:"none", borderRadius:12, fontWeight:800, fontSize:15, cursor:saving?"not-allowed":"pointer", boxShadow:"0 4px 14px rgba(37,99,235,0.35)", opacity:saving?0.8:1 }}>
-                      {saving ? "Menyimpan..." : editId ? "✓ Perbarui Data" : "✓ Simpan ke Database"}
+                      {saving?"Menyimpan...":editId?"✓ Perbarui Data":"✓ Simpan ke Database"}
                     </button>
                   </div>
                 </div>
@@ -380,12 +415,12 @@ export default function App() {
             </div>
           )}
 
-          {/* DATA TAB */}
-          {tab === "data" && (
+          {/* DATABASE */}
+          {tab==="data" && (
             <div className="fade-up">
               <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:20, flexWrap:"wrap" }}>
                 <span style={{ fontSize:13, fontWeight:700, color:"#64748b" }}>Filter Lantai:</span>
-                {["all",...FLOORS.map(String)].filter(l => l==="all" || data.some(d=>d.lantai===Number(l))).map(l => (
+                {["all",...FLOORS.map(String)].filter(l=>l==="all"||data.some(d=>d.lantai===Number(l))).map(l=>(
                   <button key={l} onClick={()=>setFilterLantai(l)} style={{ padding:"6px 14px", borderRadius:8, border:"none", background:filterLantai===l?"#2563eb":"#fff", color:filterLantai===l?"#fff":"#64748b", fontWeight:600, fontSize:12, cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.08)" }}>
                     {l==="all"?"Semua":"Lt. "+l}
                   </button>
@@ -393,13 +428,12 @@ export default function App() {
               </div>
               {loading ? (
                 <div style={{ textAlign:"center", padding:60, color:"#94a3b8", fontSize:14 }}>Memuat data dari Firebase...</div>
-              ) : filtered.length === 0 ? (
+              ) : filtered.length===0 ? (
                 <div style={{ textAlign:"center", padding:"60px 0", color:"#94a3b8" }}>
-                  <div style={{ fontSize:40, marginBottom:12 }}>📭</div>
+                  {/* <div style={{ fontSize:40, marginBottom:12 }}>📭</div> */}
                   <div style={{ fontSize:16, fontWeight:700 }}>Belum ada data</div>
-                  <div style={{ fontSize:12, marginTop:6 }}>Mulai input di tab 📋 Input</div>
                 </div>
-              ) : Object.keys(grouped).sort((a,b)=>Number(a)-Number(b)).map(lantai => (
+              ) : Object.keys(grouped).sort((a,b)=>Number(a)-Number(b)).map(lantai=>(
                 <div key={lantai} style={{ marginBottom:24 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
                     <div style={{ background:"#1e3a5f", color:"#fff", borderRadius:8, padding:"4px 14px", fontSize:13, fontWeight:800 }}>Lantai {lantai}</div>
@@ -407,37 +441,37 @@ export default function App() {
                     <span style={{ fontSize:12, color:"#94a3b8", fontFamily:"'DM Mono',monospace" }}>{grouped[lantai].length} kamar</span>
                   </div>
                   <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-                    {grouped[lantai].map(row => (
+                    {grouped[lantai].sort((a,b)=>a.kamar.localeCompare(b.kamar)).map(row=>(
                       <div key={row.id} className="row-hover" style={{ background:"#fff", borderRadius:14, padding:"16px 20px", boxShadow:"0 1px 8px rgba(0,0,0,0.06)", transition:"background 0.15s", border:"1px solid #f1f5f9" }}>
                         <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12 }}>
                           <div style={{ flex:1 }}>
-                            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8, flexWrap:"wrap" }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6, flexWrap:"wrap" }}>
                               <span style={{ fontWeight:800, fontSize:16, color:"#1e293b" }}>Kamar {row.kamar}</span>
+                              <span style={{ fontSize:10, color:"#94a3b8", fontFamily:"'DM Mono',monospace", background:"#f1f5f9", borderRadius:5, padding:"2px 7px" }}>{row.tanggal}</span>
                               {row.catatanDoor?.toLowerCase().includes("lowbat") && <Badge text="⚠ Battery Lowbat" color="#f59e0b"/>}
-                              {row.channelRusak?.length > 0 && <Badge text={`📺 ${row.channelRusak.length} channel rusak`} color="#dc2626"/>}
+                              {row.channelRusak?.length>0 && <Badge text={`📺 ${row.channelRusak.length} ch rusak`} color="#dc2626"/>}
                             </div>
-                            <div style={{ display:"flex", flexWrap:"wrap", gap:"6px 20px", marginBottom:6 }}>
-                              <span style={{ fontSize:12, color:"#64748b" }}>🕐 Before: <strong style={{color:"#1e293b"}}>{row.doorBefore||"—"}</strong></span>
-                              <span style={{ fontSize:12, color:"#64748b" }}>🕐 After: <strong style={{color:"#1e293b"}}>{row.doorAfter||"—"}</strong></span>
-                              <span style={{ fontSize:12, color:"#64748b" }}>🔋 Expired: <strong style={{color:"#1e293b"}}>{row.expiredBaterai||"—"}</strong></span>
+                            <div style={{ display:"flex", flexWrap:"wrap", gap:"5px 18px", marginBottom:6 }}>
+                              {row.doorBefore && <span style={{ fontSize:12, color:"#64748b" }}>🕐 Before: <strong style={{color:"#1e293b"}}>{row.doorBefore}</strong></span>}
+                              {row.doorAfter  && <span style={{ fontSize:12, color:"#64748b" }}>🕐 After: <strong style={{color:"#1e293b"}}>{row.doorAfter}</strong></span>}
+                              {(row.expiredBulan||row.expiredTahun) && <span style={{ fontSize:12, color:"#64748b" }}>🔋 Expired: <strong style={{color:"#1e293b"}}>{fmtExpired(row.expiredBulan,row.expiredTahun)}</strong></span>}
                             </div>
-                            {selisihWaktu(row.doorBefore, row.doorAfter) && (
-                              <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:"#f0fdf4", border:"1px solid #86efac", borderRadius:7, padding:"3px 10px", fontSize:12, color:"#16a34a", fontWeight:600, marginBottom:8, fontFamily:"'DM Mono',monospace" }}>
-                                ⏱ Durasi: {selisihWaktu(row.doorBefore, row.doorAfter)}
+                            {selisihWaktu(row.doorBefore,row.doorAfter) && (
+                              <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:"#f0fdf4", border:"1px solid #86efac", borderRadius:7, padding:"3px 10px", fontSize:12, color:"#16a34a", fontWeight:600, marginBottom:6, fontFamily:"'DM Mono',monospace" }}>
+                                ⏱ {selisihWaktu(row.doorBefore,row.doorAfter)}
                               </div>
                             )}
-                            {row.channelRusak?.length > 0 && (
+                            {row.channelRusak?.length>0 && (
                               <div style={{ display:"flex", flexWrap:"wrap", gap:5, marginBottom:6 }}>
                                 {row.channelRusak.map((ch,i)=><Badge key={i} text={ch} color="#64748b"/>)}
                               </div>
                             )}
-                            {(row.catatanDoor || row.catatan) && (
-                              <div style={{ fontSize:12, color:"#64748b", fontStyle:"italic", marginTop:4 }}>
-                                {row.catatanDoor && <span>🔒 {row.catatanDoor} </span>}
-                                {row.catatan && <span>📝 {row.catatan}</span>}
+                            {(row.catatanDoor||row.catatan) && (
+                              <div style={{ fontSize:12, color:"#64748b", fontStyle:"italic" }}>
+                                {row.catatanDoor&&<span>🔒 {row.catatanDoor} </span>}
+                                {row.catatan&&<span>📝 {row.catatan}</span>}
                               </div>
                             )}
-                            <div style={{ fontSize:10, color:"#cbd5e1", fontFamily:"'DM Mono',monospace", marginTop:8 }}>{fmt(row.ts)}</div>
                           </div>
                           <div style={{ display:"flex", gap:6, flexShrink:0 }}>
                             <button onClick={()=>handleEdit(row)} style={{ padding:"7px 14px", background:"#eff6ff", color:"#2563eb", border:"1px solid #bfdbfe", borderRadius:8, fontSize:12, fontWeight:700, cursor:"pointer" }}>Edit</button>
@@ -452,12 +486,12 @@ export default function App() {
             </div>
           )}
 
-          {/* PRINT TAB */}
-          {tab === "print" && (
+          {/* PRINT */}
+          {tab==="print" && (
             <div className="fade-up">
               <div style={{ background:"#fff", borderRadius:18, boxShadow:"0 2px 20px rgba(0,0,0,0.07)", overflow:"hidden" }}>
                 <div style={{ background:"linear-gradient(135deg,#1e3a5f,#2563eb)", padding:"22px 28px" }}>
-                  <div style={{ fontSize:20, fontWeight:800, color:"#fff" }}>🖨️ Print Laporan</div>
+                  <div style={{ fontSize:20, fontWeight:800, color:"#fff" }}> Print Laporan</div>
                   <div style={{ fontSize:12, color:"#93c5fd", marginTop:4 }}>Pilih tanggal dan lantai, lalu cetak ke kertas A4</div>
                 </div>
                 <div style={{ padding:"28px" }}>
@@ -467,7 +501,7 @@ export default function App() {
                       <input type="date" value={printTanggal} onChange={e=>setPrintTanggal(e.target.value)} className="inp"
                         style={{ width:"100%", padding:"12px 14px", border:"1.5px solid #e2e8f0", borderRadius:10, fontSize:14, background:"#f8fafc", color:"#1e293b" }}/>
                       <div style={{ marginTop:8, display:"flex", gap:8 }}>
-                        <button onClick={()=>setPrintTanggal(toDateStr(today))} style={{ padding:"5px 12px", borderRadius:7, border:"1.5px solid #e2e8f0", background:printTanggal===toDateStr(today)?"#2563eb":"#f8fafc", color:printTanggal===toDateStr(today)?"#fff":"#64748b", fontSize:11, fontWeight:700, cursor:"pointer" }}>Hari Ini</button>
+                        <button onClick={()=>setPrintTanggal(todayStr)} style={{ padding:"5px 12px", borderRadius:7, border:"1.5px solid #e2e8f0", background:printTanggal===todayStr?"#2563eb":"#f8fafc", color:printTanggal===todayStr?"#fff":"#64748b", fontSize:11, fontWeight:700, cursor:"pointer" }}>Hari Ini</button>
                         <button onClick={()=>setPrintTanggal(toDateStr(yesterday))} style={{ padding:"5px 12px", borderRadius:7, border:"1.5px solid #e2e8f0", background:printTanggal===toDateStr(yesterday)?"#2563eb":"#f8fafc", color:printTanggal===toDateStr(yesterday)?"#fff":"#64748b", fontSize:11, fontWeight:700, cursor:"pointer" }}>Kemarin</button>
                       </div>
                     </div>
@@ -483,23 +517,18 @@ export default function App() {
                   <div style={{ background:printCount>0?"#f0fdf4":"#fff7ed", border:`1.5px solid ${printCount>0?"#86efac":"#fed7aa"}`, borderRadius:10, padding:"14px 18px", marginBottom:24, display:"flex", alignItems:"center", gap:12 }}>
                     <span style={{ fontSize:22 }}>{printCount>0?"📋":"📭"}</span>
                     <div>
-                      <div style={{ fontWeight:700, color:printCount>0?"#16a34a":"#ea580c", fontSize:14 }}>
-                        {printCount>0 ? `${printCount} kamar ditemukan` : "Tidak ada data"}
-                      </div>
-                      <div style={{ fontSize:12, color:"#64748b", marginTop:2 }}>
-                        {fmtTanggal(printTanggal)} · {printLantai==="all"?"Semua lantai":"Lantai "+printLantai}
-                      </div>
+                      <div style={{ fontWeight:700, color:printCount>0?"#16a34a":"#ea580c", fontSize:14 }}>{printCount>0?`${printCount} kamar ditemukan`:"Tidak ada data"}</div>
+                      <div style={{ fontSize:12, color:"#64748b", marginTop:2 }}>{fmtTanggal(printTanggal)} · {printLantai==="all"?"Semua lantai":"Lantai "+printLantai}</div>
                     </div>
                   </div>
                   <button onClick={()=>setShowPrint(true)} disabled={printCount===0}
-                    style={{ width:"100%", padding:"14px", background:printCount===0?"#94a3b8":"#1e3a5f", color:"#fff", border:"none", borderRadius:12, fontWeight:800, fontSize:15, cursor:printCount===0?"not-allowed":"pointer", boxShadow:printCount>0?"0 4px 14px rgba(30,58,95,0.3)":"none" }}>
-                    🖨️ Preview & Print
+                    style={{ width:"100%", padding:"14px", background:printCount===0?"#94a3b8":"#1e3a5f", color:"#fff", border:"none", borderRadius:12, fontWeight:800, fontSize:15, cursor:printCount===0?"not-allowed":"pointer" }}>
+                     Preview & Print
                   </button>
                 </div>
               </div>
             </div>
           )}
-
         </div>
       </div>
     </>

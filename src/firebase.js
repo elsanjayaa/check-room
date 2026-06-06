@@ -2,12 +2,13 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBC1VdSAviU_1_smA2VO9YXnLoIfQzc21g",
-  authDomain: "hotel-check-f020c.firebaseapp.com",
-  projectId: "hotel-check-f020c",
-  storageBucket: "hotel-check-f020c.firebasestorage.app",
-  messagingSenderId: "1009331330415",
-  appId: "1:1009331330415:web:1657b7683a9c6fef091c9a"
+  apiKey: "AIzaSyBrvTg3jNWDAqzu7U0n-56nLjwdOqSD9xw",
+  authDomain: "hotel-check-ff435.firebaseapp.com",
+  projectId: "hotel-check-ff435",
+  storageBucket: "hotel-check-ff435.firebasestorage.app",
+  messagingSenderId: "168134002357",
+  appId: "1:168134002357:web:c6d803ab5a384c04a1e0fc",
+  measurementId: "G-LKZ19Y3HC3"
 };
 
 const app = initializeApp(firebaseConfig);
