@@ -303,7 +303,7 @@ export default function App() {
           {/* <div style={{ width:36,height:36,borderRadius:10,background:"#2563eb",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18 }}></div> */}
           <div>
             <div style={{ fontSize:16, fontWeight:800, color:"#fff" }}>Hotel Room Check</div>
-            <div style={{ fontSize:10, color:"#7ca3cc", fontFamily:"'DM Mono',monospace", letterSpacing:1 }}>SISTEM PENGECEKAN KAMAR</div>
+            <div style={{ fontSize:8, color:"#7ca3cc", fontFamily:"'DM Mono',monospace", letterSpacing:1 }}>SISTEM PENGECEKAN KAMAR</div>
           </div>
           <div style={{ marginLeft:"auto", display:"flex", gap:4 }}>
             {[["form","📋","Input"],["data","🗄️","Database"],["print","🖨️","Print"]].map(([t,icon,label]) => (
