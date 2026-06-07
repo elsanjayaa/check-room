@@ -197,23 +197,24 @@ export default function App() {
       const tanggal = todayStr;
       const docId = editId || makeDocId(tanggal, form.lantai, form.kamar);
 
-      // Ambil data lama kalau sudah ada (merge — hanya timpa field yang diisi)
+      // Hanya kirim field yang diisi — field kosong tidak menimpa data lama
       const existing = data.find(d => d.id === docId);
       const payload = {
         tanggal,
         lantai: Number(form.lantai),
         kamar: form.kamar.trim(),
-        // Timpa hanya kalau field diisi, kalau kosong pakai data lama
-        doorBefore:   form.doorBefore   || existing?.doorBefore   || "",
-        doorAfter:    form.doorAfter    || existing?.doorAfter    || "",
-        expiredBulan: form.expiredBulan || existing?.expiredBulan || "",
-        expiredTahun: form.expiredTahun || existing?.expiredTahun || "",
-        catatanDoor:  form.catatanDoor  || existing?.catatanDoor  || "",
-        channelRusak: form.channelRusak.length ? form.channelRusak : (existing?.channelRusak || []),
-        catatan:      form.catatan      || existing?.catatan      || "",
-        updatedAt:    new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
       if (!existing) payload.createdAt = new Date().toISOString();
+
+      // Hanya masukkan field yang benar-benar diisi user
+      if (form.doorBefore)             payload.doorBefore   = form.doorBefore;
+      if (form.doorAfter)              payload.doorAfter    = form.doorAfter;
+      if (form.expiredBulan)           payload.expiredBulan = form.expiredBulan;
+      if (form.expiredTahun)           payload.expiredTahun = form.expiredTahun;
+      if (form.catatanDoor.trim())     payload.catatanDoor  = form.catatanDoor.trim();
+      if (form.channelRusak.length)    payload.channelRusak = form.channelRusak;
+      if (form.catatan.trim())         payload.catatan      = form.catatan.trim();
 
       await setDoc(doc(db, "pengecekan", docId), payload, { merge:true });
       showToast(existing ? `Data kamar ${form.kamar} diperbarui ✓` : `Data kamar ${form.kamar} disimpan ✓`);
@@ -300,10 +301,9 @@ export default function App() {
 
       <div style={{ minHeight:"100vh", background:"#f0f4f8" }}>
         <div style={{ background:"#1e3a5f", padding:"0 24px", display:"flex", alignItems:"center", gap:16, height:60, boxShadow:"0 2px 12px rgba(0,0,0,0.15)", position:"sticky", top:0, zIndex:100 }}>
-          {/* <div style={{ width:36,height:36,borderRadius:10,background:"#2563eb",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18 }}></div> */}
           <div>
             <div style={{ fontSize:16, fontWeight:800, color:"#fff" }}>Hotel Room Check</div>
-            <div style={{ fontSize:8, color:"#7ca3cc", fontFamily:"'DM Mono',monospace", letterSpacing:1 }}>SISTEM PENGECEKAN KAMAR</div>
+            <div style={{ fontSize:10, color:"#7ca3cc", fontFamily:"'DM Mono',monospace", letterSpacing:1 }}>SISTEM PENGECEKAN KAMAR</div>
           </div>
           <div style={{ marginLeft:"auto", display:"flex", gap:4 }}>
             {[["form","📋","Input"],["data","🗄️","Database"],["print","🖨️","Print"]].map(([t,icon,label]) => (
@@ -489,10 +489,16 @@ export default function App() {
                                 {row.channelRusak.map((ch,i)=><Badge key={i} text={ch} color="#64748b"/>)}
                               </div>
                             )}
-                            {(row.catatanDoor||row.catatan) && (
-                              <div style={{ fontSize:12, color:"#64748b", fontStyle:"italic" }}>
-                                {row.catatanDoor&&<span>{row.catatanDoor} </span>}
-                                {row.catatan&&<span>{row.catatan}</span>}
+                            {row.catatanDoor && (
+                              <div style={{ fontSize:12, color:"#64748b", marginTop:3 }}>
+                                <span style={{ fontWeight:600, color:"#475569" }}>Catatan Door Lock: </span>
+                                <span style={{ fontStyle:"italic" }}>{row.catatanDoor}</span>
+                              </div>
+                            )}
+                            {row.catatan && (
+                              <div style={{ fontSize:12, color:"#64748b", marginTop:3 }}>
+                                <span style={{ fontWeight:600, color:"#475569" }}>Catatan Umum: </span>
+                                <span style={{ fontStyle:"italic" }}>{row.catatan}</span>
                               </div>
                             )}
                           </div>
