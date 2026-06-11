@@ -7,37 +7,34 @@ import {
 
 const FLOORS = [1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 16, 17];
 const ROOMS = {
-  1: ["101", "102", "103", "105", "106", "107", "108", "109", "110", "111", "112"],
-  2: ["201", "202", "203", "205", "206", "207", "208", "209", "210", "211", "212", "213", "215", "216", "217", "218", "219", "220", "221", "222", "223", "225", "226", "227", "228", "229", "230", "231", "232", "233", "235", "236"],
-  3: ["301", "302", "303", "305", "306", "307", "308", "309", "310", "311", "312", "313", "315", "316", "317", "318", "319", "320", "321", "322", "323", "325", "326", "327", "328", "329", "330", "331", "332", "333", "335", "336", "337", "338", "339", "340", "341", "342", "343"],
-  5: ["501", "502", "503", "505", "506", "507", "508", "509", "510", "511", "512", "513", "515", "516", "517", "518"],
-  6: ["601", "602", "603", "605", "606", "607", "608", "609", "610", "611", "612", "613", "615", "616", "617", "618", "619", "620", "621", "622", "623", "625", "626", "627", "628", "629", "630", "631", "632", "633", "635", "636", "637", "638", "639", "640", "641", "642"],
-  7: ["701", "702", "703", "705", "706", "707", "708", "709", "710", "711", "712", "713", "715", "716", "717", "718", "719", "720", "721", "722", "723", "725", "726", "727", "728", "729", "730", "731", "732", "733", "735", "736", "737", "738", "739", "740", "741", "742", "743"],
-  8: ["801", "802", "803", "805", "806", "807", "808", "809", "810", "811", "812", "813", "815", "816", "817", "818", "819", "820", "821", "822", "823", "825", "826", "827", "828", "829", "830", "831", "832", "833", "835", "836", "837", "838", "839", "840", "841", "842", "843"],
-  9: ["901", "902", "903", "905", "906", "907", "908", "909", "910", "911", "912", "913", "915", "916", "917", "918", "919", "920", "921", "922", "923", "925", "926", "927", "928", "929", "930", "931", "932", "933", "935", "936", "937", "938", "939", "940", "941", "942", "943"],
-  10: ["1001", "1002", "1003", "1005", "1006", "1007", "1008", "1009", "1010", "1011", "1012", "1013", "1015", "1016", "1017", "1018", "1019", "1020", "1021", "1022", "1023", "1025", "1026", "1027", "1028", "1029", "1030", "1031", "1032", "1033", "1035", "1036", "1037", "1038", "1039", "1040", "1041", "1042", "1043", "1045", "1046", "1047", "1048", "1049", "1050", "1051", "1052", "1053", "1055"],
-  11: ["1101", "1102", "1103", "1105", "1106", "1107", "1108", "1109", "1110", "1111", "1112", "1113", "1115", "1116", "1117", "1118", "1119", "1120", "1121", "1122", "1123", "1125", "1126", "1127", "1128", "1129", "1130", "1131", "1132", "1133", "1135", "1136", "1137", "1138", "1139", "1140", "1141", "1142", "1143", "1145", "1146", "1147", "1148", "1149", "1150", "1151", "1152", "1153", "1155", "1156", "1157", "1158", "1159", "1160", "1161", "1162", "1163"],
-  16: ["1601", "1602", "1603", "1605", "1606", "1607", "1608", "1609", "1610", "1611", "1612", "1613", "1615", "1616", "1617", "1618", "1619", "1620"],
-  17: ["1701", "1702", "1703", "1705", "1706", "1707", "1708", "1709", "1710", "1711", "1712", "1713", "1715"]
+  1: [ "101 ",  "102 ",  "103 ",  "105 ",  "106 ",  "107 ",  "108 ",  "109 ",  "110 ",  "111 ",  "112 "],
+  2: [ "201 ",  "202 ",  "203 ",  "205 ",  "206 ",  "207 ",  "208 ",  "209 ",  "210 ",  "211 ",  "212 ",  "213 ",  "215 ",  "216 ",  "217 ",  "218 ",  "219 ",  "220 ",  "221 ",  "222 ",  "223 ",  "225 ",  "226 ",  "227 ",  "228 ",  "229 ",  "230 ",  "231 ",  "232 ",  "233 ",  "235 ",  "236 "],
+  3: [ "301 ",  "302 ",  "303 ",  "305 ",  "306 ",  "307 ",  "308 ",  "309 ",  "310 ",  "311 ",  "312 ",  "313 ",  "315 ",  "316 ",  "317 ",  "318 ",  "319 ",  "320 ",  "321 ",  "322 ",  "323 ",  "325 ",  "326 ",  "327 ",  "328 ",  "329 ",  "330 ",  "331 ",  "332 ",  "333 ",  "335 ",  "336 ",  "337 ",  "338 ",  "339 ",  "340 ",  "341 ",  "342 ",  "343 "],
+  5: [ "501 ",  "502 ",  "503 ",  "505 ",  "506 ",  "507 ",  "508 ",  "509 ",  "510 ",  "511 ",  "512 ",  "513 ",  "515 ",  "516 ",  "517 ",  "518 "],
+  6: [ "601 ",  "602 ",  "603 ",  "605 ",  "606 ",  "607 ",  "608 ",  "609 ",  "610 ",  "611 ",  "612 ",  "613 ",  "615 ",  "616 ",  "617 ",  "618 ",  "619 ",  "620 ",  "621 ",  "622 ",  "623 ",  "625 ",  "626 ",  "627 ",  "628 ",  "629 ",  "630 ",  "631 ",  "632 ",  "633 ",  "635 ",  "636 ",  "637 ",  "638 ",  "639 ",  "640 ",  "641 ",  "642 "],
+  7: [ "701 ",  "702 ",  "703 ",  "705 ",  "706 ",  "707 ",  "708 ",  "709 ",  "710 ",  "711 ",  "712 ",  "713 ",  "715 ",  "716 ",  "717 ",  "718 ",  "719 ",  "720 ",  "721 ",  "722 ",  "723 ",  "725 ",  "726 ",  "727 ",  "728 ",  "729 ",  "730 ",  "731 ",  "732 ",  "733 ",  "735 ",  "736 ",  "737 ",  "738 ",  "739 ",  "740 ",  "741 ",  "742 ",  "743 "],
+  8: [ "801 ",  "802 ",  "803 ",  "805 ",  "806 ",  "807 ",  "808 ",  "809 ",  "810 ",  "811 ",  "812 ",  "813 ",  "815 ",  "816 ",  "817 ",  "818 ",  "819 ",  "820 ",  "821 ",  "822 ",  "823 ",  "825 ",  "826 ",  "827 ",  "828 ",  "829 ",  "830 ",  "831 ",  "832 ",  "833 ",  "835 ",  "836 ",  "837 ",  "838 ",  "839 ",  "840 ",  "841 ",  "842 ",  "843 "],
+  9: [ "901 ",  "902 ",  "903 ",  "905 ",  "906 ",  "907 ",  "908 ",  "909 ",  "910 ",  "911 ",  "912 ",  "913 ",  "915 ",  "916 ",  "917 ",  "918 ",  "919 ",  "920 ",  "921 ",  "922 ",  "923 ",  "925 ",  "926 ",  "927 ",  "928 ",  "929 ",  "930 ",  "931 ",  "932 ",  "933 ",  "935 ",  "936 ",  "937 ",  "938 ",  "939 ",  "940 ",  "941 ",  "942 ",  "943 "],
+  10: [ "1001 ",  "1002 ",  "1003 ",  "1005 ",  "1006 ",  "1007 ",  "1008 ",  "1009 ",  "1010 ",  "1011 ",  "1012 ",  "1013 ",  "1015 ",  "1016 ",  "1017 ",  "1018 ",  "1019 ",  "1020 ",  "1021 ",  "1022 ",  "1023 ",  "1025 ",  "1026 ",  "1027 ",  "1028 ",  "1029 ",  "1030 ",  "1031 ",  "1032 ",  "1033 ",  "1035 ",  "1036 ",  "1037 ",  "1038 ",  "1039 ",  "1040 ",  "1041 ",  "1042 ",  "1043 ",  "1045 ",  "1046 ",  "1047 ",  "1048 ",  "1049 ",  "1050 ",  "1051 ",  "1052 ",  "1053 ",  "1055 "],
+  11: [ "1101 ",  "1102 ",  "1103 ",  "1105 ",  "1106 ",  "1107 ",  "1108 ",  "1109 ",  "1110 ",  "1111 ",  "1112 ",  "1113 ",  "1115 ",  "1116 ",  "1117 ",  "1118 ",  "1119 ",  "1120 ",  "1121 ",  "1122 ",  "1123 ",  "1125 ",  "1126 ",  "1127 ",  "1128 ",  "1129 ",  "1130 ",  "1131 ",  "1132 ",  "1133 ",  "1135 ",  "1136 ",  "1137 ",  "1138 ",  "1139 ",  "1140 ",  "1141 ",  "1142 ",  "1143 ",  "1145 ",  "1146 ",  "1147 ",  "1148 ",  "1149 ",  "1150 ",  "1151 ",  "1152 ",  "1153 ",  "1155 ",  "1156 ",  "1157 ",  "1158 ",  "1159 ",  "1160 ",  "1161 ",  "1162 ",  "1163 "],
+  16: [ "1601 ",  "1602 ",  "1603 ",  "1605 ",  "1606 ",  "1607 ",  "1608 ",  "1609 ",  "1610 ",  "1611 ",  "1612 ",  "1613 ",  "1615 ",  "1616 ",  "1617 ",  "1618 ",  "1619 ",  "1620 "],
+  17: [ "1701 ",  "1702 ",  "1703 ",  "1705 ",  "1706 ",  "1707 ",  "1708 ",  "1709 ",  "1710 ",  "1711 ",  "1712 ",  "1713 ",  "1715 "]
 };
-
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+const MONTHS = [ "Jan ",  "Feb ",  "Mar ",  "Apr ",  "Mei ",  "Jun ",  "Jul ",  "Agu ",  "Sep ",  "Okt ",  "Nov ",  "Des "];
 const today = new Date();
 const yesterday = new Date(Date.now() - 86400000);
 const toDateStr = d => d.toISOString().split("T")[0];
 const todayStr = toDateStr(today);
-
 const makeDocId = (tanggal, lantai, kamar) => `${tanggal}_lt${lantai}_${kamar.replace(/\s/g, "")}`;
 
-// PERBAIKAN 1: Gunakan string kosong "" bukan spasi " " agar sistem bisa mendeteksi field benar-benar kosong
 const EMPTY = {
-  lantai: "", kamar: "",
-  doorBefore: "", doorAfter: "", catatanDoor: "",
+  lantai: " ", kamar: " ",
+  doorBefore: " ", doorAfter: " ", catatanDoor: " ",
   batreLowbat: false,
   batreExpired: false,
   bateraiList: [],
-  channelInput: "", channelRusak: [],
-  catatan: ""
+  channelInput: " ", channelRusak: [],
+  catatan: " "
 };
 
 function selisihWaktu(before, after) {
@@ -86,12 +83,14 @@ function Toast({ msg, ok, onDone }) {
 
 function PrintView({ data, tanggal, lantai, onClose }) {
   const [savingPdf, setSavingPdf] = useState(false);
+  
   const filtered = data
     .filter(d => d.tanggal === tanggal && (lantai === "all" || d.lantai === Number(lantai)))
     .sort((a, b) => a.lantai - b.lantai || a.kamar.localeCompare(b.kamar));
+    
   const grouped = {};
   filtered.forEach(d => { if (!grouped[d.lantai]) grouped[d.lantai] = []; grouped[d.lantai].push(d); });
-
+  
   const handleSavePdf = async () => {
     setSavingPdf(true);
     try {
@@ -120,10 +119,10 @@ function PrintView({ data, tanggal, lantai, onClose }) {
           body > * { display:none !important; } 
           #print-modal { display:block !important; position:static !important; background:none !important; padding:0 !important; } 
           #no-print { display:none !important; } 
-          #print-area { box-shadow:none !important; padding:15mm !important; max-width:100% !important; background: #fff !important; color: #000 !important; }
-          #print-area * { color: #000 !important; }
-          .floor-section { page-break-before: always; }
-          .floor-section:first-child { page-break-before: auto; }
+          #print-area { box-shadow:none !important; padding:15mm !important; max-width:100% !important; background: #fff !important; color: #000 !important; } 
+          #print-area * { color: #000 !important; } 
+          .floor-section { page-break-before: always; } 
+          .floor-section:first-child { page-break-before: auto; } 
         } 
         @page { size:A4 portrait; margin:0; }
       `}</style>
@@ -141,7 +140,7 @@ function PrintView({ data, tanggal, lantai, onClose }) {
             <div>
               <div style={{ fontSize: 14, fontWeight: 900, color: "#0f172a", letterSpacing: "1px" }}>LAPORAN PENGECEKAN KAMAR</div>
               <div style={{ fontSize: 8, color: "#475569", marginTop: 4, fontFamily: "'DM Mono', monospace" }}>
-                TANGGAL: <b>{fmtTanggal(tanggal).toUpperCase()}</b> &emsp; LANTAI: <b>{lantai === "all" ? "SEMUA" : "LANTAI " + lantai}</b> &emsp; TOTAL: <b>{filtered.length} KAMAR</b>
+                TANGGAL: <b>{fmtTanggal(tanggal).toUpperCase()}</b>   LANTAI: <b>{lantai === "all" ? "SEMUA" : "LANTAI " + lantai}</b>   TOTAL: <b>{filtered.length} KAMAR</b>
               </div>
             </div>
             <div style={{ fontSize: 8, color: "#94a3b8", fontFamily: "'DM Mono', monospace" }}>DICETAK: {new Date().toLocaleString("id-ID")}</div>
@@ -206,7 +205,6 @@ export default function App() {
   const [printLantai, setPrintLantai] = useState("all");
   const [toast, setToast] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
-  
   const [bateraiBulan, setBateraiBulan] = useState("");
   const [bateraiTahun, setBateraiTahun] = useState("");
 
@@ -225,6 +223,7 @@ export default function App() {
     if (!form.channelInput.trim()) return;
     setForm(f => ({ ...f, channelRusak: [...f.channelRusak, f.channelInput.trim()], channelInput: "" }));
   };
+
   const removeChannel = i => setForm(f => ({ ...f, channelRusak: f.channelRusak.filter((_, idx) => idx !== i) }));
 
   const addBaterai = () => {
@@ -236,6 +235,7 @@ export default function App() {
     setBateraiBulan("");
     setBateraiTahun("");
   };
+
   const removeBaterai = id => setForm(f => ({ ...f, bateraiList: f.bateraiList.filter(b => b.id !== id) }));
 
   const handleSubmit = async () => {
@@ -246,21 +246,17 @@ export default function App() {
       const docId = editId || makeDocId(tanggal, form.lantai, form.kamar);
       const existing = data.find(d => d.id === docId);
       
-      // PERBAIKAN 2: Helper function untuk memastikan merge data yang aman
-      // Jika mode edit, izinkan pengosongan. Jika quick add, ambil data lama jika input baru kosong.
       const getVal = (val, existingVal) => {
-        if (typeof val === 'string' && val.trim() !== "") return val.trim();
+        if (typeof val === 'string' && val.trim() !== " ") return val.trim();
         return editId ? " " : (existingVal || " ");
       };
 
-      // Helper untuk menggabungkan array tanpa duplikat
       const mergeArrays = (newArr, oldArr) => {
         if (!newArr || newArr.length === 0) return oldArr || [];
         if (!oldArr || oldArr.length === 0) return newArr;
         return [...new Set([...oldArr, ...newArr])];
       };
 
-      // Helper khusus baterai (cek duplikat berdasarkan bulan & tahun)
       const mergeBaterai = (newList, oldList) => {
         if (!newList || newList.length === 0) return oldList || [];
         if (!oldList || oldList.length === 0) return newList;
@@ -278,14 +274,10 @@ export default function App() {
         doorAfter: getVal(form.doorAfter, existing?.doorAfter),
         catatanDoor: getVal(form.catatanDoor, existing?.catatanDoor),
         catatan: getVal(form.catatan, existing?.catatan),
-        
         batreLowbat: form.batreLowbat || existing?.batreLowbat || false,
         batreExpired: form.batreExpired || existing?.batreExpired || false,
-        
-        // Gunakan fungsi merge agar data tidak hilang saat input tambahan
         bateraiList: editId ? form.bateraiList : mergeBaterai(form.bateraiList, existing?.bateraiList),
         channelRusak: editId ? form.channelRusak : mergeArrays(form.channelRusak, existing?.channelRusak),
-        
         updatedAt: new Date().toISOString(),
       };
       
@@ -294,8 +286,8 @@ export default function App() {
       await setDoc(doc(db, "pengecekan", docId), payload, { merge: true });
       showToast(existing ? `Data kamar ${form.kamar} berhasil digabung ✓` : `Data kamar ${form.kamar} disimpan ✓`);
       setForm(EMPTY);
-      setBateraiBulan("");
-      setBateraiTahun("");
+      setBateraiBulan(" ");
+      setBateraiTahun(" ");
       setEditId(null);
     } catch (e) { showToast("Gagal menyimpan: " + e.message, false); }
     setSaving(false);
@@ -322,11 +314,17 @@ export default function App() {
 
   const handleDelete = async id => {
     try {
-      if (id === "all") {
+      if (id === "__all__") {
         const { getDocs } = await import("firebase/firestore");
         const snap = await getDocs(collection(db, "pengecekan"));
-        await Promise.all(snap.docs.map(d => deleteDoc(doc(db, "pengecekan", d.id))));
-        showToast("Semua data berhasil dihapus");
+        // PERBAIKAN: Hanya hapus data yang tanggalnya sama dengan hari ini (todayStr)
+        const docsToDelete = snap.docs.filter(d => d.data().tanggal === todayStr);
+        if (docsToDelete.length === 0) {
+          showToast("Tidak ada data hari ini untuk dihapus", false);
+        } else {
+          await Promise.all(docsToDelete.map(d => deleteDoc(doc(db, "pengecekan", d.id))));
+          showToast(`${docsToDelete.length} data hari ini berhasil dihapus`);
+        }
       } else {
         await deleteDoc(doc(db, "pengecekan", id));
         showToast("Data dihapus");
@@ -343,7 +341,7 @@ export default function App() {
   
   const printCount = data.filter(d => d.tanggal === printTanggal && (printLantai === "all" || d.lantai === Number(printLantai))).length;
   const yearOptions = Array.from({ length: 10 }, (_, i) => 2025 + i);
-
+  
   const theme = {
     bg: "#0f0f0f",
     card: "#1a1a1a",
@@ -377,7 +375,9 @@ export default function App() {
         .fade-up{animation:fadeUp 0.35s ease both;} 
         .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;} 
         .grid-2-print{display:grid;grid-template-columns:1fr 1fr;gap:20px;} 
+        .main-container { padding: 24px 40px !important; }
         @media(max-width:600px){ 
+          .main-container { padding: 16px !important; }
           .grid-2{grid-template-columns:1fr !important;} 
           .grid-2-print{grid-template-columns:1fr !important;} 
           .card-pad{padding:16px !important;} 
@@ -402,8 +402,14 @@ export default function App() {
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 8000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
           <div style={{ background: theme.card, borderRadius: 16, padding: "28px 32px", maxWidth: 320, textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.5)", border: `1px solid ${theme.cardBorder}` }}>
             <div style={{ fontSize: 32, marginBottom: 10 }}>⚠️</div>
-            <div style={{ fontSize: 17, fontWeight: 800, color: theme.text, marginBottom: 8 }}>{confirmDelete === "__all__" ? "Hapus semua data?" : "Hapus data ini?"}</div>
-            <div style={{ fontSize: 12, color: theme.textMuted, marginBottom: 22 }}>Tindakan ini tidak bisa dikembalikan</div>
+            <div style={{ fontSize: 17, fontWeight: 800, color: theme.text, marginBottom: 8 }}>
+              {confirmDelete === "__all__" ? "Hapus semua data hari ini?" : "Hapus data ini?"}
+            </div>
+            <div style={{ fontSize: 12, color: theme.textMuted, marginBottom: 22 }}>
+              {confirmDelete === "__all__" 
+                ? "Hanya data dengan tanggal hari ini yang akan dihapus permanen." 
+                : "Tindakan ini tidak bisa dikembalikan"}
+            </div>
             <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
               <button onClick={() => setConfirmDelete(null)} style={{ padding: "9px 20px", borderRadius: 8, border: `1.5px solid ${theme.cardBorder}`, background: "transparent", color: theme.textMuted, cursor: "pointer", fontWeight: 600, fontSize: 13 }}>Batal</button>
               <button onClick={() => handleDelete(confirmDelete)} style={{ padding: "9px 20px", borderRadius: 8, border: "none", background: theme.danger, color: "#fff", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>Hapus</button>
@@ -432,7 +438,7 @@ export default function App() {
           </div>
         </div>
 
-        <div style={{ maxWidth: 900, margin: "0 auto", padding: "20px 12px" }}>
+        <div style={{ maxWidth: "100%", margin: "0 auto", boxSizing: "border-box" }} className="main-container">
 
           {tab === "form" && (
             <div className="fade-up">
@@ -444,20 +450,19 @@ export default function App() {
                   </div>
                 </div>
                 <div className="card-pad" style={{ padding: "24px 20px" }}>
-
                   <div className="grid-2" style={{ marginBottom: 20 }}>
                     <div>
                       <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: theme.gold, letterSpacing: 1, marginBottom: 8 }}>LANTAI</label>
                       <select value={form.lantai} onChange={e => setForm(f => ({ ...f, lantai: e.target.value }))} className="inp"
                         style={{ width: "100%", padding: "12px 14px", border: `1.5px solid ${theme.inputBorder}`, borderRadius: 10, fontSize: 14, color: form.lantai ? theme.text : theme.textMuted, background: theme.inputBg }}>
-                        <option value="">Pilih lantai...</option>
+                        <option value=" ">Pilih lantai...</option>
                         {FLOORS.map(l => <option key={l} value={l}>Lantai {l}</option>)}
                       </select>
                     </div>
                     <div>
                       <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: theme.gold, letterSpacing: 1, marginBottom: 8 }}>NOMOR KAMAR</label>
                       <select value={form.kamar} onChange={e => setForm(f => ({ ...f, kamar: e.target.value }))} className="inp" style={{ width: "100%", padding: "12px 14px", border: `1.5px solid ${theme.inputBorder}`, borderRadius: 10, fontSize: 14, background: theme.inputBg, color: theme.text }}>
-                        <option value="">Pilih kamar...</option>
+                        <option value=" ">Pilih kamar...</option>
                         {(ROOMS[form.lantai] || []).map(r => <option key={r} value={r}>{r}</option>)}
                       </select>
                     </div>
@@ -494,12 +499,12 @@ export default function App() {
                       <div className="grid-2" style={{ gap: 10, marginBottom: 10 }}>
                         <select value={bateraiBulan} onChange={e => setBateraiBulan(e.target.value)} className="inp"
                           style={{ padding: "10px 12px", border: `1.5px solid ${theme.inputBorder}`, borderRadius: 8, fontSize: 14, background: theme.card, color: bateraiBulan ? theme.text : theme.textMuted }}>
-                          <option value="">Bulan...</option>
+                          <option value=" ">Bulan...</option>
                           {MONTHS.map((m, i) => <option key={i + 1} value={String(i + 1).padStart(2, "0")}>{m}</option>)}
                         </select>
                         <select value={bateraiTahun} onChange={e => setBateraiTahun(e.target.value)} className="inp"
                           style={{ padding: "10px 12px", border: `1.5px solid ${theme.inputBorder}`, borderRadius: 8, fontSize: 14, background: theme.card, color: bateraiTahun ? theme.text : theme.textMuted }}>
-                          <option value="">Tahun...</option>
+                          <option value=" ">Tahun...</option>
                           {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
                         </select>
                       </div>
@@ -563,7 +568,7 @@ export default function App() {
 
                   <div style={{ display: "flex", gap: 12 }}>
                     {editId && (
-                      <button onClick={() => { setEditId(null); setForm(EMPTY); setBateraiBulan(""); setBateraiTahun(""); }} style={{ padding: "14px 20px", background: "transparent", color: theme.textMuted, border: `1.5px solid ${theme.cardBorder}`, borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>BATAL</button>
+                      <button onClick={() => { setEditId(null); setForm(EMPTY); setBateraiBulan(" "); setBateraiTahun(" "); }} style={{ padding: "14px 20px", background: "transparent", color: theme.textMuted, border: `1.5px solid ${theme.cardBorder}`, borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>BATAL</button>
                     )}
                     <button onClick={handleSubmit} disabled={saving}
                       style={{ flex: 1, padding: "14px", background: saving ? "#475569" : theme.gold, color: "#0f0f0f", border: "none", borderRadius: 10, fontWeight: 800, fontSize: 15, cursor: saving ? "not-allowed" : "pointer", boxShadow: `0 4px 14px ${theme.gold}44`, opacity: saving ? 0.8 : 1, letterSpacing: "0.5px" }}>
@@ -595,7 +600,8 @@ export default function App() {
                     </button>
                   ))}
                 </div>
-                <button onClick={() => setConfirmDelete("__all__")} style={{ padding: "7px 16px", background: theme.dangerBg, color: "#f87171", border: "1px solid rgba(220, 38, 38, 0.3)", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0, letterSpacing: "0.5px" }}>HAPUS SEMUA</button>
+                {/* PERBAIKAN: Teks tombol diubah agar lebih jelas bahwa ini hanya menghapus data hari ini */}
+                <button onClick={() => setConfirmDelete("__all__")} style={{ padding: "7px 16px", background: theme.dangerBg, color: "#f87171", border: "1px solid rgba(220, 38, 38, 0.3)", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0, letterSpacing: "0.5px" }}>HAPUS HARI INI</button>
               </div>
               {loading ? (
                 <div style={{ textAlign: "center", padding: 60, color: theme.textMuted, fontSize: 14, fontFamily: "'DM Mono', monospace" }}>MEMUAT DATA DARI FIREBASE...</div>
@@ -640,14 +646,12 @@ export default function App() {
                                 {row.channelRusak.map((ch, i) => <Badge key={i} text={ch} color="#94a3b8" />)}
                               </div>
                             )}
-                            
-                            {/* PERBAIKAN 3: Memisahkan tampilan Catatan Door dan Catatan Umum agar tidak menyatu */}
                             {(row.catatanDoor || row.catatan) && (
                               <div style={{ fontSize: 12, color: theme.textMuted, display: "flex", flexDirection: "column", gap: 4, borderTop: `1px solid ${theme.cardBorder}`, paddingTop: 8, marginTop: 4 }}>
-                                {row.catatanDoor && row.catatanDoor.trim() !== "" && row.catatanDoor.trim() !== " " && (
+                                {row.catatanDoor && row.catatanDoor.trim() !== " " && row.catatanDoor.trim() !== "  " && (
                                   <div><strong style={{ color: theme.gold }}>Catatan Door:</strong> {row.catatanDoor}</div>
                                 )}
-                                {row.catatan && row.catatan.trim() !== "" && row.catatan.trim() !== " " && (
+                                {row.catatan && row.catatan.trim() !== " " && row.catatan.trim() !== "  " && (
                                   <div><strong style={{ color: theme.gold }}>Catatan Umum:</strong> {row.catatan}</div>
                                 )}
                               </div>
