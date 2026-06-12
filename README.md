@@ -1,39 +1,59 @@
-# 🏨 Hotel Room Check
+# Hotel Room Maintenance System
 
-Sistem pengecekan kamar hotel berbasis web — realtime, multi-user, dan bisa cetak laporan harian.
+Sistem manajemen pengecekan kamar hotel berbasis web — realtime, multi-user, dengan laporan harian yang dapat dicetak.
+
+---
+
+## Daftar Isi
+
+- [Fitur](#fitur)
+- [Teknologi](#teknologi)
+- [Instalasi](#instalasi)
+- [Struktur Database](#struktur-database)
+- [Panduan Penggunaan](#panduan-penggunaan)
+- [Keamanan & Akses](#keamanan--akses)
+- [Konfigurasi Lantai & Kamar](#konfigurasi-lantai--kamar)
+- [Batas Gratis Firebase](#batas-gratis-firebase)
 
 ---
 
 ## Fitur
 
-- **Input pengecekan kamar** — door lock (before/after/durasi), expired baterai, channel TV rusak, catatan
-- **Data realtime** — tersimpan di Firebase Firestore, langsung sync ke semua perangkat
-- **Merge otomatis** — beberapa staff bisa input kamar yang sama di hari yang sama, data digabung otomatis
-- **Riwayat per hari** — data hari berbeda disimpan terpisah
-- **Filter per lantai** — lihat data lantai tertentu di halaman database
-- **Print & simpan PDF** — filter per tanggal & lantai, output tabel A4 siap cetak
-- **Edit & hapus** — data bisa diubah atau dihapus kapan saja
+| Fitur | Keterangan |
+|-------|------------|
+| Input pengecekan | Door lock (before/after/durasi otomatis), expired baterai (multi-entry), status lowbat, channel TV rusak, kerusakan pintu, catatan umum |
+| Realtime sync | Data tersimpan di Firebase Firestore dan langsung tersinkronisasi ke semua perangkat |
+| Merge otomatis | Beberapa staff dapat menginput kamar yang sama di hari yang sama — data digabung otomatis tanpa duplikasi |
+| Filter database | Filter data berdasarkan tanggal (hari ini / kemarin / custom) dan lantai |
+| Tab Status | Ringkasan terakhir kali setiap lantai dicek, lengkap dengan indikator warna |
+| Print & PDF | Cetak laporan per tanggal dan lantai dalam format tabel A4 — tiap lantai otomatis pisah halaman |
+| Akses PIN | Halaman login dengan keypad PIN sebelum dapat mengakses sistem |
+| Auto-hapus data | Data lebih dari 2 bulan dihapus otomatis saat app dibuka |
+| Edit & hapus | Data dapat diubah atau dihapus kapan saja |
 
 ---
 
 ## Teknologi
 
-| Teknologi | Kegunaan |
-|-----------|----------|
-| React + Vite | Frontend framework |
-| Firebase Firestore | Database realtime (cloud) |
-| html2pdf.js | Export PDF |
+| Teknologi | Versi | Kegunaan |
+|-----------|-------|----------|
+| React | 18+ | Frontend framework |
+| Vite | 5+ | Build tool & dev server |
+| Firebase Firestore | 10+ | Database realtime (cloud) |
+| html2pdf.js | 0.10 | Export laporan ke PDF |
 
 ---
 
-## Cara Menjalankan
+## Instalasi
 
-### 1. Prasyarat
+### Prasyaratan
 
-Pastikan sudah terinstall:
-- [Node.js](https://nodejs.org) (versi LTS)
+- [Node.js](https://nodejs.org) versi LTS (18 atau lebih baru)
+- Akun [Firebase](https://firebase.google.com) (Spark Plan / gratis sudah cukup)
 
-### 2. Clone / buat project
+### Langkah
+
+**1. Buat project baru**
 
 ```bash
 npm create vite@latest hotel-check -- --template react
@@ -42,7 +62,14 @@ npm install
 npm install firebase
 ```
 
-### 3. Tambahkan file konfigurasi Firebase
+**2. Buat project Firebase**
+
+1. Buka [console.firebase.google.com](https://console.firebase.google.com)
+2. Klik **Add project** → ikuti langkah setup
+3. Di sidebar, buka **Firestore Database** → **Create database** → pilih mode **Production**
+4. Di **Project Settings** → **Your apps** → klik ikon Web (`</>`) → daftarkan app → salin `firebaseConfig`
+
+**3. Buat file konfigurasi Firebase**
 
 Buat file `src/firebase.js`:
 
@@ -63,13 +90,11 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 ```
 
-> Ganti nilai di atas dengan konfigurasi dari Firebase Console kamu.
-
-### 4. Salin kode utama
+**4. Salin kode utama**
 
 Salin isi `App.jsx` ke `src/App.jsx`.
 
-### 5. Jalankan
+**5. Jalankan**
 
 ```bash
 npm run dev
@@ -79,78 +104,120 @@ Buka browser di `http://localhost:5173`
 
 ---
 
-## Struktur Firestore
+## Struktur Database
 
-Koleksi: `pengecekan`
+**Koleksi:** `pengecekan`
 
-Setiap dokumen mewakili **satu kamar pada satu hari**, dengan ID format:
-
-```
-YYYY-MM-DD_ltX_NomorKamar
-contoh: 2026-06-05_lt3_301
-```
-
-Field yang disimpan:
+Setiap dokumen merepresentasikan **satu kamar pada satu hari**, dengan format ID:
 
 ```
-tanggal        string    "2026-06-05"
+{YYYY-MM-DD}_lt{lantai}_{nomorKamar}
+Contoh: 2026-06-10_lt3_301
+```
+
+**Field dokumen:**
+
+```
+tanggal        string    "2026-06-10"
 lantai         number    3
 kamar          string    "301"
 doorBefore     string    "08:00:00"
 doorAfter      string    "08:45:30"
-expiredBulan   string    "06"
-expiredTahun   string    "2026"
-catatanDoor    string    "Battery lowbat"
+bateraiList    array     [{ bulan: "06", tahun: "2027" }]
+batreLowbat    boolean   true
+catatanDoor    string    "Handle longgar"
 channelRusak   array     ["Metro TV", "Trans7"]
 catatan        string    "AC perlu dicek"
+expireAt       timestamp Otomatis dihapus setelah 2 bulan
 createdAt      string    ISO timestamp
 updatedAt      string    ISO timestamp
 ```
 
 ---
 
-## Cara Pakai
+## Panduan Penggunaan
 
-### Input data
-1. Buka tab **📋 Input**
-2. Pilih lantai dan isi nomor kamar
-3. Isi bagian yang perlu dicek (boleh tidak semua diisi)
+### Input Data
+
+1. Buka tab **Input**
+2. Pilih lantai — nomor kamar akan muncul sesuai lantai yang dipilih
+3. Isi bagian yang perlu dicek (semua field boleh dikosongkan kecuali lantai & kamar)
 4. Klik **Simpan ke Database**
-5. Kalau kamar yang sama sudah diinput hari ini, data akan **digabung otomatis**
 
-### Lihat database
-1. Buka tab **🗄️ Database**
-2. Gunakan filter lantai untuk mempersempit tampilan
-3. Klik **Edit** untuk ubah data, **Hapus** untuk menghapus
+> Jika kamar yang sama sudah diinput hari ini, data baru akan **digabung otomatis** dengan data yang ada.
 
-### Cetak laporan
-1. Buka tab **🖨️ Print**
-2. Pilih tanggal (ada shortcut "Hari Ini" dan "Kemarin")
-3. Pilih lantai yang ingin dicetak
-4. Klik **Preview & Print**
-5. Klik **⬇ Simpan PDF** untuk download, atau **🖨️ Print** untuk cetak langsung
+### Lihat Database
+
+1. Buka tab **Database**
+2. Pilih tanggal menggunakan tombol **Hari Ini**, **Kemarin**, atau date picker
+3. Filter lantai untuk mempersempit tampilan
+4. Klik **Edit** untuk mengubah data, **Hapus** untuk menghapus
+
+### Cek Status Lantai
+
+1. Buka tab **Status**
+2. Tampil ringkasan semua lantai — kapan terakhir dicek dan berapa kamar yang sudah diinput hari ini
+3. Indikator warna: 🟢 hari ini · 🟡 kemarin · 🔴 lebih dari kemarin · ⚫ belum pernah
+
+### Cetak Laporan
+
+1. Buka tab **Print**
+2. Pilih tanggal dan lantai
+3. Klik **Preview & Print**
+4. Pilih **Simpan PDF** untuk download atau **Print** untuk cetak langsung
+5. Setiap lantai otomatis berada di halaman terpisah
+
+---
+
+## Keamanan & Akses
+
+Sistem dilindungi dengan **PIN keypad** di halaman depan. Hanya pengguna yang mengetahui PIN yang dapat mengakses dan menginput data.
+
+**Mengubah PIN** — edit baris berikut di `App.jsx`:
+
+```js
+const VALID_PINS = ["1234", "5678"];  // tambah atau ubah PIN di sini
+```
+
+Beberapa PIN dapat didaftarkan sekaligus (misalnya beda shift). Sesi login bertahan **8 jam** secara default, setelah itu pengguna perlu login kembali.
+
+**Mengubah durasi sesi:**
+
+```js
+const SESSION_HOURS = 8;  // ganti angka sesuai kebutuhan
+```
+
+> Untuk keamanan lebih lanjut, pertimbangkan mengaktifkan **Firebase Security Rules** di Firestore Console agar database tidak dapat diakses langsung dari luar aplikasi.
+
+---
+
+## Konfigurasi Lantai & Kamar
+
+Daftar lantai dan kamar dikonfigurasi di bagian atas `App.jsx`:
+
+```js
+const FLOORS = [1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 16, 17];
+
+const ROOMS = {
+  1: ["101", "102", "103", ...],
+  2: ["201", "202", ...],
+  // dst.
+};
+```
+
+Tambah, hapus, atau ubah nomor kamar langsung di objek `ROOMS`.
 
 ---
 
 ## Batas Gratis Firebase
 
-Paket gratis Firebase (Spark Plan) sudah lebih dari cukup untuk penggunaan hotel:
+Paket Spark (gratis) sudah lebih dari cukup untuk penggunaan operasional hotel:
 
-| Operasi | Batas/hari |
-|---------|-----------|
-| Baca | 50.000 kali |
-| Tulis | 20.000 kali |
-| Hapus | 20.000 kali |
-| Storage | 1 GB total |
+| Operasi | Batas per Hari | Estimasi Penggunaan |
+|---------|---------------|---------------------|
+| Baca | 50.000 | ~500 kamar × 10 baca = 5.000/hari |
+| Tulis | 20.000 | ~500 kamar × 2 tulis = 1.000/hari |
+| Hapus | 20.000 | Sangat jarang |
+| Storage | 1 GB total | Data 2 bulan ≈ beberapa MB |
 
----
-
-## Lantai
-
-Sistem dikonfigurasi untuk **lantai 1–17**. Untuk mengubahnya, edit baris berikut di `App.jsx`:
-
-```js
-const FLOORS = Array.from({length:17}, (_,i) => i+1);
-//                               ^^
-//                         ganti angka ini
-```
+Data lama dihapus otomatis setiap 2 bulan sehingga storage tetap terjaga.
