@@ -191,7 +191,96 @@ function PrintView({ data, tanggal, lantai, onClose }) {
   );
 }
 
-export default function App() {
+// PIN yang diizinkan — ubah sesuai kebutuhan
+const VALID_PINS = ["2404", "1308", "2807", "2016"];
+// Berapa jam sesi login bertahan (default 8 jam)
+const SESSION_HOURS = 8;
+const SESSION_KEY = "hrc_session";
+
+function LoginScreen({ onLogin }) {
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState("");
+  const [shake, setShake] = useState(false);
+
+  const handleSubmit = () => {
+    if (VALID_PINS.includes(pin)) {
+      const expiry = Date.now() + SESSION_HOURS * 60 * 60 * 1000;
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({ expiry }));
+      onLogin();
+    } else {
+      setError("PIN salah, coba lagi");
+      setShake(true);
+      setPin("");
+      setTimeout(() => setShake(false), 500);
+    }
+  };
+
+  const handleKey = (k) => {
+    if (k === "DEL") { setPin(p => p.slice(0,-1)); setError(""); return; }
+    if (pin.length >= 6) return;
+    const next = pin + k;
+    setPin(next);
+    setError("");
+    if (next.length >= 4) {
+      setTimeout(() => {
+        if (VALID_PINS.includes(next)) {
+          const expiry = Date.now() + SESSION_HOURS * 60 * 60 * 1000;
+          sessionStorage.setItem(SESSION_KEY, JSON.stringify({ expiry }));
+          onLogin();
+        } else {
+          setError("PIN salah, coba lagi");
+          setShake(true);
+          setPin("");
+          setTimeout(() => setShake(false), 500);
+        }
+      }, 120);
+    }
+  };
+
+  return (
+    <div style={{ minHeight:"100vh", background:"#0f172a", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-8px)} 40%,80%{transform:translateX(8px)} }
+        .pin-shake { animation: shake 0.4s ease; }
+        .pin-key { transition: all 0.1s; user-select:none; }
+        .pin-key:active { transform: scale(0.92); background: #334155 !important; }
+      `}</style>
+      <div style={{ background:"#1e293b", borderRadius:24, padding:"40px 32px", maxWidth:320, width:"100%", textAlign:"center", boxShadow:"0 20px 60px rgba(0,0,0,0.5)", border:"1px solid #334155" }}>
+        {/* <div style={{ fontSize:40, marginBottom:12 }}>🏨</div> */}
+        <div style={{ fontSize:20, fontWeight:800, color:"#f1f5f9", marginBottom:4 }}>Room Maintenance System</div>
+        <div style={{ fontSize:12, color:"#64748b", marginBottom:32, fontFamily:"monospace", letterSpacing:1 }}>MASUKKAN PIN AKSES</div>
+
+        {/* Dot indikator */}
+        <div className={shake ? "pin-shake" : ""} style={{ display:"flex", justifyContent:"center", gap:12, marginBottom:28 }}>
+          {[0,1,2,3].map(i => (
+            <div key={i} style={{ width:14, height:14, borderRadius:"50%", background: pin.length > i ? "#2563eb" : "#334155", border:"2px solid", borderColor: pin.length > i ? "#2563eb" : "#475569", transition:"all 0.15s" }}/>
+          ))}
+        </div>
+
+        {error && <div style={{ color:"#f87171", fontSize:12, fontWeight:600, marginBottom:16 }}>{error}</div>}
+
+        {/* Keypad */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10 }}>
+          {["1","2","3","4","5","6","7","8","9","","0","DEL"].map((k,i) => (
+            k === "" ? <div key={i}/> :
+            <button key={k} onClick={()=>handleKey(k)} className="pin-key"
+              style={{ padding:"18px 0", borderRadius:14, border:"none", background: k==="DEL"?"#dc262622":"#253352", color: k==="DEL"?"#f87171":"#e2e8f0", fontWeight:700, fontSize: k==="DEL"?13:20, cursor:"pointer", fontFamily:"inherit" }}>
+              {k==="DEL"?"⌫":k}
+            </button>
+          ))}
+        </div>
+
+        <button onClick={handleSubmit} style={{ marginTop:20, width:"100%", padding:"14px", background:"#2563eb", color:"#fff", border:"none", borderRadius:14, fontWeight:800, fontSize:15, cursor:"pointer" }}>
+          Masuk
+        </button>
+        <div style={{ marginTop:16, fontSize:11, color:"#334155" }}>Sesi otomatis berakhir setelah {SESSION_HOURS} jam</div>
+      </div>
+    </div>
+  );
+}
+
+function MainApp() {
   const [tab, setTab] = useState("form");
   const [form, setForm] = useState(EMPTY);
   const [data, setData] = useState([]);
@@ -217,6 +306,19 @@ export default function App() {
       setLoading(false);
     });
     return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    const cleanOldData = async () => {
+      const twoMonthsAgo = new Date();
+      twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
+      const cutoff = toDateStr(twoMonthsAgo);
+      const { getDocs, where } = await import("firebase/firestore");
+      const q = query(collection(db, "pengecekan"), where("tanggal", "<", cutoff));
+      const snap = await getDocs(q);
+      snap.docs.forEach(d => deleteDoc(doc(db, "pengecekan", d.id)));
+    };
+    cleanOldData();
   }, []);
 
   const addChannel = () => {
@@ -266,6 +368,9 @@ export default function App() {
         );
       };
 
+      const expireAt = new Date();
+      expireAt.setMonth(expireAt.getMonth() + 2);
+
       const payload = {
         tanggal,
         lantai: Number(form.lantai),
@@ -279,6 +384,7 @@ export default function App() {
         bateraiList: editId ? form.bateraiList : mergeBaterai(form.bateraiList, existing?.bateraiList),
         channelRusak: editId ? form.channelRusak : mergeArrays(form.channelRusak, existing?.channelRusak),
         updatedAt: new Date().toISOString(),
+        expireAt,
       };
       
       if (!existing) payload.createdAt = new Date().toISOString();
@@ -776,4 +882,18 @@ export default function App() {
       </div>
     </>
   );
+}
+
+export default function App() {
+  const [authed, setAuthed] = useState(() => {
+    try {
+      const s = sessionStorage.getItem(SESSION_KEY);
+      if (!s) return false;
+      const { expiry } = JSON.parse(s);
+      return Date.now() < expiry;
+    } catch { return false; }
+  });
+
+  if (!authed) return <LoginScreen onLogin={() => setAuthed(true)} />;
+  return <MainApp />;
 }
